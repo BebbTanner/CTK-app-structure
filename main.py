@@ -1,3 +1,10 @@
+'''
+    I wonder if I could combo this with my rock, paper, scissors.
+    Maybe make it so that each tab has a different game on it?
+    Or use this example and combo it with an API to display some type of data?
+    I might try the API thing, but I would have to find an API to work with.
+'''
+
 import customtkinter
 
 
