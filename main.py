@@ -7,6 +7,7 @@
 
 import customtkinter
 
+customtkinter.set_default_color_theme("gold")
 
 class LoginPage(customtkinter.CTkFrame):
     def __init__(self, master, on_login):
