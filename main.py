@@ -1,102 +1,164 @@
 import customtkinter
 
 
-class InputFrame(customtkinter.CTkFrame):
-    """Entry and button for a new note. It does not know where notes are stored, it only calls on_add."""
-
-    def __init__(self, master, on_add):
+class LoginPage(customtkinter.CTkFrame):
+    def __init__(self, master, on_login):
         super().__init__(master, fg_color="transparent")
-        self.on_add = on_add
+        self.on_login = on_login
         self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure((0, 4), weight=1)  # empty rows above and below center the content
 
-        self.entry = customtkinter.CTkEntry(self, placeholder_text="New note")
-        self.entry.grid(row=0, column=0, padx=(0, 10), sticky="ew")
-        self.entry.bind("<Return>", lambda event: self.add())
-        self.button = customtkinter.CTkButton(self, text="Add", width=80, command=self.add)
-        self.button.grid(row=0, column=1)
+        self.title_label = customtkinter.CTkLabel(self, text="Welcome", font=customtkinter.CTkFont(size=24, weight="bold"))
+        self.title_label.grid(row=1, column=0, pady=(0, 20))
+        self.username_entry = customtkinter.CTkEntry(self, placeholder_text="Username", width=220)
+        self.username_entry.grid(row=2, column=0, pady=(0, 10))
+        self.username_entry.bind("<Return>", self.login)
+        self.login_button = customtkinter.CTkButton(self, text="Log in", width=220, command=self.login)
+        self.login_button.grid(row=3, column=0)
 
-    def add(self):
-        text = self.entry.get().strip()
-        if text:
-            self.on_add(text)
-            self.entry.delete(0, "end")
-
-
-class NoteListFrame(customtkinter.CTkScrollableFrame):
-    """Shows the notes it gets from show(). A click on Delete calls on_delete with the index of the note."""
-
-    def __init__(self, master, on_delete):
-        super().__init__(master, label_text="Notes")
-        self.on_delete = on_delete
-        self.grid_columnconfigure(0, weight=1)
-        self.rows = []
-        self.delete_buttons = []
-
-    def show(self, notes):
-        for row in self.rows:
-            row.destroy()
-        self.rows = []
-        self.delete_buttons = []
-
-        for index, note in enumerate(notes):
-            row = customtkinter.CTkFrame(self)
-            row.grid(row=index, column=0, padx=5, pady=(5, 0), sticky="ew")
-            row.grid_columnconfigure(0, weight=1)
-            label = customtkinter.CTkLabel(row, text=note, anchor="w")
-            label.grid(row=0, column=0, padx=10, pady=5, sticky="ew")
-            button = customtkinter.CTkButton(row, text="Delete", width=60, fg_color="transparent", border_width=1,
-                                             text_color=("gray10", "gray90"),
-                                             command=lambda i=index: self.on_delete(i))
-            button.grid(row=0, column=1, padx=5, pady=5)
-            self.rows.append(row)
-            self.delete_buttons.append(button)
+    def login(self, event=None):
+        username = self.username_entry.get().strip()
+        if username:
+            self.username_entry.delete(0, "end")
+            self.on_login(username)
 
 
-class StatusBar(customtkinter.CTkFrame):
-    def __init__(self, master):
-        super().__init__(master, corner_radius=0)
-        self.grid_columnconfigure(0, weight=1)
-        self.label = customtkinter.CTkLabel(self, text="", anchor="w")
-        self.label.grid(row=0, column=0, padx=20, sticky="ew")
+class HomePage(customtkinter.CTkFrame):
+    def __init__(self, master, app):
+        super().__init__(master, fg_color="transparent")
+        self.app = app
+        self.welcome_label = customtkinter.CTkLabel(self, text="", font=customtkinter.CTkFont(size=20))
+        self.welcome_label.grid(row=0, column=0, sticky="w")
 
-    def set(self, text):
-        self.label.configure(text=text)
+    def on_show(self):
+        self.welcome_label.configure(text=f"Welcome, {self.app.username}!")
+
+
+class SettingsPage(customtkinter.CTkFrame):
+    def __init__(self, master, app):
+        super().__init__(master, fg_color="transparent")
+        self.app = app
+        self.title_label = customtkinter.CTkLabel(self, text="Settings", font=customtkinter.CTkFont(size=20))
+        self.title_label.grid(row=0, column=0, pady=(0, 20), sticky="w")
+        self.name_entry = customtkinter.CTkEntry(self, width=220)
+        self.name_entry.grid(row=1, column=0, pady=(0, 10), sticky="w")
+        self.save_button = customtkinter.CTkButton(self, text="Save name", command=self.save)
+        self.save_button.grid(row=2, column=0, sticky="w")
+        self.status_label = customtkinter.CTkLabel(self, text="")
+        self.status_label.grid(row=3, column=0, sticky="w")
+
+    def on_show(self):
+        self.name_entry.set(self.app.username)
+        self.status_label.configure(text="")
+
+    def save(self):
+        name = self.name_entry.get().strip()
+        if name:
+            self.app.username = name
+            self.status_label.configure(text="Saved.")
+
+
+class AboutPage(customtkinter.CTkFrame):
+    def __init__(self, master, app):
+        super().__init__(master, fg_color="transparent")
+        self.label = customtkinter.CTkLabel(self, text="This app shows how to switch between pages.")
+        self.label.grid(row=0, column=0, sticky="w")
+
+    def on_show(self):
+        pass
+
+
+class MainView(customtkinter.CTkFrame):
+    """A sidebar with navigation buttons and the area where one page at a time is shown."""
+
+    def __init__(self, master, app):
+        super().__init__(master, fg_color="transparent")
+        self.app = app
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+
+        self.sidebar = customtkinter.CTkFrame(self, corner_radius=0)
+        self.sidebar.grid(row=0, column=0, sticky="ns")
+        self.sidebar.grid_rowconfigure(4, weight=1)
+
+        # all pages are created once and placed in the same grid cell, only one of them is visible
+        self.pages = {
+            "home": HomePage(self, app),
+            "settings": SettingsPage(self, app),
+            "about": AboutPage(self, app),
+        }
+        for page in self.pages.values():
+            page.grid(row=0, column=1, padx=30, pady=30, sticky="nsew")
+            page.grid_remove()
+
+        self.nav_buttons = {}
+        for row, (name, text) in enumerate([("home", "Home"), ("settings", "Settings"), ("about", "About")]):
+            button = customtkinter.CTkButton(self.sidebar, text=text, anchor="w", fg_color="transparent",
+                                             text_color=("gray10", "gray90"), hover_color=("gray70", "gray30"),
+                                             command=lambda n=name: self.show_page(n))
+            button.grid(row=row, column=0, padx=10, pady=(10 if row == 0 else 0, 5), sticky="ew")
+            self.nav_buttons[name] = button
+
+        self.back_button = customtkinter.CTkButton(self.sidebar, text="Back", command=self.go_back)
+        self.back_button.grid(row=3, column=0, padx=10, pady=(20, 0), sticky="ew")
+        self.logout_button = customtkinter.CTkButton(self.sidebar, text="Log out", command=app.logout)
+        self.logout_button.grid(row=5, column=0, padx=10, pady=10, sticky="ew")
+
+        self.current = None
+        self.history = []
+
+    def show_page(self, name, remember=True):
+        if name == self.current:
+            return
+        if self.current is not None:
+            self.pages[self.current].grid_remove()
+            if remember:
+                self.history.append(self.current)
+
+        self.current = name
+        self.pages[name].grid()  # grid() without arguments restores the options from before grid_remove()
+        self.pages[name].on_show()
+
+        for button_name, button in self.nav_buttons.items():
+            button.configure(fg_color=("gray75", "gray25") if button_name == name else "transparent")
+        self.back_button.configure(state="normal" if self.history else "disabled")
+
+    def go_back(self):
+        if self.history:
+            self.show_page(self.history.pop(), remember=False)
+
+    def reset(self):
+        if self.current is not None:
+            self.pages[self.current].grid_remove()
+        self.current = None
+        self.history = []
 
 
 class App(customtkinter.CTk):
-    """The main window owns the data (the list of notes) and connects the frames."""
-
     def __init__(self):
         super().__init__()
 
-        self.title("Notes")
-        self.geometry("400x420")
+        self.title("Multiple pages")
+        self.geometry("560x340")
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
 
-        self.notes = []
+        self.username = ""  # data that all pages can read through self.app
 
-        self.input_frame = InputFrame(self, on_add=self.add_note)
-        self.input_frame.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
-        self.note_list = NoteListFrame(self, on_delete=self.delete_note)
-        self.note_list.grid(row=1, column=0, padx=20, pady=0, sticky="nsew")
-        self.status_bar = StatusBar(self)
-        self.status_bar.grid(row=2, column=0, pady=(20, 0), sticky="ew")
+        self.login_page = LoginPage(self, on_login=self.login)
+        self.main_view = MainView(self, app=self)
+        self.login_page.grid(row=0, column=0, sticky="nsew")
 
-        self.update_view()
+    def login(self, username):
+        self.username = username
+        self.login_page.grid_forget()
+        self.main_view.grid(row=0, column=0, sticky="nsew")
+        self.main_view.show_page("home")
 
-    def add_note(self, text):
-        self.notes.append(text)
-        self.update_view()
-
-    def delete_note(self, index):
-        del self.notes[index]
-        self.update_view()
-
-    def update_view(self):
-        self.note_list.show(self.notes)
-        count = len(self.notes)
-        self.status_bar.set(f"{count} note" if count == 1 else f"{count} notes")
+    def logout(self):
+        self.main_view.grid_forget()
+        self.main_view.reset()
+        self.login_page.grid(row=0, column=0, sticky="nsew")
 
 
 app = App()
